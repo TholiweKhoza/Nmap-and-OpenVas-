@@ -230,3 +230,4 @@ logs/
 
 .vscode/
 .idea/
+secrets/
