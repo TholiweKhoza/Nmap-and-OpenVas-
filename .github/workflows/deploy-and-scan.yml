@@ -1,0 +1,54 @@
+name: Deploy Infrastructure and Run Security Audit
+
+on:
+  push:
+    branches: [ "main" ]
+
+# Required for Workload Identity Federation authentication
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy_infrastructure:
+    runs-on: ubuntu-latest
+    outputs:
+      target_ip: ${{ steps.extract_ip.outputs.target_ip }}
+      scan_bucket: ${{ steps.extract_bucket.outputs.scan_bucket }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Authenticate to GCP (Keyless via Workload Identity)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/804558470476/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'github-actions-deployer@tholiwesproject.iam.gserviceaccount.com'
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply
+        env:
+          TF_VAR_project_id: "tholiwesproject"
+          TF_VAR_bucket_name: "tholiwesproject-security-scans-bucket"
+        run: terraform apply -auto-approve
+
+      - name: Extract Target IP Output
+        id: extract_ip
+        run: echo "target_ip=$(terraform output -raw instance_public_ip)" >> $GITHUB_OUTPUT
+
+      - name: Extract Bucket Output
+        id: extract_bucket
+        run: echo "scan_bucket=$(terraform output -raw scan_bucket_name)" >> $GITHUB_OUTPUT
+
+  trigger_security_scan:
+    needs: deploy_infrastructure
+    uses: <CENTRAL_GITHUB_ORG>/<CENTRAL_SECURITY_REPO>/.github/workflows/gcp-security-scan.yml@main
+    with:
+      target_ip: ${{ needs.deploy_infrastructure.outputs.target_ip }}
+      report_bucket: ${{ needs.deploy_infrastructure.outputs.scan_bucket }}
+    secrets: inherit 
