@@ -1,13 +1,14 @@
-# Stage 1: install dependencies
-FROM apache/airflow:2.9.1-python3.11 AS builder
+FROM apache/airflow:2.9.1-python3.11
+
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nmap \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 USER airflow
 COPY requirements.txt /requirements.txt
-RUN pip install --no-cache-dir --user -r /requirements.txt
+RUN pip install --no-cache-dir -r /requirements.txt
 
-# Stage 2: final lean image
-FROM apache/airflow:2.9.1-python3.11
-
-USER airflow
-COPY --from=builder /home/airflow/.local /home/airflow/.local
-ENV PATH=/home/airflow/.local/bin:$PATH
+# Automatically run nmap on docker run
+ENTRYPOINT ["nmap"] 
