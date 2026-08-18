@@ -36,6 +36,8 @@ jobs:
         env:
           TF_VAR_project_id: "tholiwesproject"
           TF_VAR_bucket_name: "tholiwesproject-security-scans-bucket"
+          TF_VAR_region: "us-central1"
+          TF_VAR_zone: "us-central1-a"
         run: terraform apply -auto-approve
 
       - name: Extract Target IP Output
@@ -46,11 +48,11 @@ jobs:
         id: extract_bucket
         run: echo "scan_bucket=$(terraform output -raw scan_bucket_name)" >> $GITHUB_OUTPUT
 
-#  # Job 2: Commented out until central repo path is confirmed
-#  trigger_security_scan:
-#    needs: deploy_infrastructure
-#    uses: TholiweKhoza/central-security-repo/.github/workflows/gcp-security-scan.yml@main
-#    with:
-#      target_ip: ${{ needs.deploy_infrastructure.outputs.target_ip }}
-#      report_bucket: ${{ needs.deploy_infrastructure.outputs.scan_bucket }}
-#    secrets: inherit
+  # Job 2: Triggers the reusable security scan from your central repo
+  trigger_security_scan:
+    needs: deploy_infrastructure
+    uses: TholiweKhoza/central-security-repo/.github/workflows/gcp-security-scan.yml@main
+    with:
+      target_ip: ${{ needs.deploy_infrastructure.outputs.target_ip }}
+      report_bucket: ${{ needs.deploy_infrastructure.outputs.scan_bucket }}
+    secrets: inherit
